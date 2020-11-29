@@ -1,47 +1,61 @@
 <template>
-  <div class="hello">
+  <div>
+    <div class="stats" v-if="games > 0">
+      HS: {{ highscore }}
+      G: {{ games }}
+    </div>
+
     <ul v-if="ship.jumps > 0">
-      <li>Jumps {{ ship.jumps }}</li>
-      <li>Hull {{ ship.hull }}</li>
-      <li>Fuel {{ ship.fuel }}</li>
+      <li>{{ ship.jumps }} jumps</li>
+      <li>{{ ship.hull }}% hull</li>
+      <li>{{ ship.fuel }}t fuel</li>
     </ul>
+
+    <div v-if="!gameover">
+      <div v-if="msg">
+        {{ msg }}
+      </div>
+
+      <div class="mobs" v-if="ship.jumps > 0">
+        <div v-if="area.hasMobs">
+          <p v-if="!area.scanned">
+            Your sensors pick up a drive signature
+
+            <a href="#" @click.prevent="scanMobs" v-if="!area.scanned">scan</a>
+          </p>
+
+          <p v-else>
+            {{ area.mobs.appearance }}
+            {{ area.mobs.behaviour }}
+
+            <a href="#" @click.prevent="attackMobs">
+              <span v-if="ship.fighting">
+                engage the enemy
+              </span>
+
+              <span v-else>
+                ambush
+              </span>
+            </a>
+          </p>
+        </div>
+
+        <p v-else>
+          No other ships in the area.
+        </p>
+      </div>
+
+      <p class="jump" v-if="!ship.fighting">
+        <a href="#" @click.prevent="nextArea">activate jump drive</a>
+      </p>
+    </div>
 
     <div
       class="game-over"
       v-if="gameover"
     >
       {{ gameoverReason }}
-    </div>
-
-    <div v-else>
-      <div v-if="msg">
-        {{ msg }}
-      </div>
-
-      <div class="mobs" v-if="ship.jumps > 0">
-        <p v-if="area.mobs">
-          Your sensors detect other ships in the area.
-          <a href="#" @click.prevent="scanMobs" v-if="!area.scanned">scan</a>
-          &nbsp;
-          <a href="#" @click.prevent="attackMobs">
-            <span v-if="ship.fighting">
-              engage the enemy
-            </span>
-
-            <span v-else>
-              ambush
-            </span>
-          </a>
-        </p>
-        <p v-else>
-          No other ships in the scanners.
-        </p>
-      </div>
-
-      <p v-if="!ship.fighting">
-        <a href="#" @click.prevent="nextArea">activate jump drive</a>
-      </p>
-
+      You managed {{ ship.jumps }} jumps.
     </div>
   </div>
 </template>
@@ -63,7 +77,17 @@ export default {
   },
   computed: {
     gameover () {
-      return this.ship.fuel <= 0 || this.ship.hull <= 0
+      const over = this.ship.fuel <= 0 || this.ship.hull <= 0
+
+      if (over && this.ship.jumps > this.highscore) {
+        window.localStorage.setItem('stats.highscore', this.ship.jumps)
+      }
+
+      if (over) {
+        window.localStorage.setItem('stats.games', this.games + 1)
+      }
+
+      return over
     },
     gameoverReason () {
       if (this.ship.fuel <= 0) {
@@ -73,6 +97,22 @@ export default {
       }
 
       return null
+    },
+    highscore () {
+      var hs = window.localStorage.getItem('stats.highscore')
+      if (!hs) {
+        hs = 0
+      }
+
+      return hs
+    },
+    games () {
+      var gs = window.localStorage.getItem('stats.games')
+      if (!gs) {
+        gs = 0
+      }
+
+      return parseInt(gs)
     }
   },
   methods: {
@@ -86,8 +126,12 @@ export default {
 
     resetArea () {
       this.area = {
-        mobs: false,
-        mobStrength: 0,
+        hasMobs: false,
+        mobs: {
+          appearance: null,
+          behaviour: null,
+          strength: 0
+        },
         scanned: false
       }
     },
@@ -101,44 +145,47 @@ export default {
       this.resetArea()
 
       const probability = {
-        mobs: 50,
+        mobs: 30,
         mobType: {
-          unarmed: 30,
-          armed: 70
+          armed: 80
         }
       }
 
       // Roll for mobs
-      this.area.mobs = this.roll() >= probability.mobs
-      if (this.area.mobs) {
+      this.area.hasMobs = this.roll() >= probability.mobs
+      if (this.area.hasMobs) {
         // Armed?
-        if (this.roll() >= probability.mobType.armed) {
-          this.area.mobStrength = this.roll()
+        if (this.roll() <= probability.mobType.armed) {
+          this.area.mobs.strength = this.roll()
         }
       }
     },
 
     scanMobs () {
-      const ms = this.area.mobStrength
+      const ms = this.area.mobs.strength
+      var threat = false
 
       if (ms === 0) {
-        this.msg = 'Unarmed ship detected.'
+        this.area.mobs.appearance = 'Unarmed ship detected.'
       } else if (ms < this.ship.hull / 2) {
-        this.msg = 'Lightly defended ship detected.'
+        this.area.mobs.appearance = 'Lightly defended ship detected.'
       } else if (ms < this.ship.hull) {
-        this.msg = 'Well defended ship detected.'
+        this.area.mobs.appearance = 'Well defended ship detected.'
       } else if (ms >= this.ship.hull) {
-        this.msg = 'Combat ship detected.'
+        this.area.mobs.appearance = 'Combat ship detected.'
       }
 
       // Armed mobs might want to fight
       if (ms > 0) {
-        const threat = this.coinFlip()
-        console.log(threat)
+        threat = this.coinFlip()
         if (threat) {
           this.ship.fighting = true
-          this.msg = this.msg + " Your scan alerted them and they're on an intercept course."
+          this.area.mobs.behaviour = "Your scan alerted them and they're on an intercept course."
         }
+      }
+
+      if (ms <= 0 || !threat) {
+        this.area.mobs.behaviour = "They don't seem to have noticed your ship."
       }
 
       this.area.scanned = true
@@ -146,12 +193,12 @@ export default {
 
     attackMobs () {
       var dmg = this.roll()
-      if (dmg > this.area.mobStrength) {
-        dmg = this.area.mobStrength
+      if (dmg > this.area.mobs.strength) {
+        dmg = this.area.mobs.strength
       }
 
       this.ship.hull = this.ship.hull - dmg
-      this.area.mobs = false
+      this.area.hasMobs = false
       const salvagedFuel = this.roll(10)
       this.ship.fuel = this.ship.fuel + salvagedFuel
 
@@ -170,4 +217,9 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.stats {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
 </style>

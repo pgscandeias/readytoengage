@@ -5,6 +5,9 @@
 </template>
 
 <style lang="scss">
+body {
+  margin: 1rem;
+}
 #app {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
