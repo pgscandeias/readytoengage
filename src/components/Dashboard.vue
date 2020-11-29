@@ -1,8 +1,9 @@
 <template>
   <div>
-    <div class="stats" v-if="games > 0">
-      HS: {{ highscore }}
-      G: {{ games }}
+    <div class="stats" v-if="stats.games > 0">
+      HS:{{ stats.highscore }}
+      G:{{ stats.games }}
+      K:{{ stats.kills }}
     </div>
 
     <ul v-if="ship.jumps > 0">
@@ -19,7 +20,7 @@
       <div class="mobs" v-if="ship.jumps > 0">
         <div v-if="area.hasMobs">
           <p v-if="!area.scanned">
-            Your sensors pick up a drive signature
+            Your sensors picked up a drive signature
 
             <a href="#" @click.prevent="scanMobs" v-if="!area.scanned">scan</a>
           </p>
@@ -72,22 +73,17 @@ export default {
         fuel: 10,
         fighting: false
       },
-      area: {}
+      area: {},
+      stats: {
+        highscore: 0,
+        games: 0,
+        kills: 0
+      }
     }
   },
   computed: {
     gameover () {
-      const over = this.ship.fuel <= 0 || this.ship.hull <= 0
-
-      if (over && this.ship.jumps > this.highscore) {
-        window.localStorage.setItem('stats.highscore', this.ship.jumps)
-      }
-
-      if (over) {
-        window.localStorage.setItem('stats.games', this.games + 1)
-      }
-
-      return over
+      return this.ship.fuel <= 0 || this.ship.hull <= 0
     },
     gameoverReason () {
       if (this.ship.fuel <= 0) {
@@ -97,22 +93,6 @@ export default {
       }
 
       return null
-    },
-    highscore () {
-      var hs = window.localStorage.getItem('stats.highscore')
-      if (!hs) {
-        hs = 0
-      }
-
-      return hs
-    },
-    games () {
-      var gs = window.localStorage.getItem('stats.games')
-      if (!gs) {
-        gs = 0
-      }
-
-      return parseInt(gs)
     }
   },
   methods: {
@@ -141,6 +121,10 @@ export default {
       this.msg = null
       this.ship.jumps++
       this.ship.fuel--
+      if (this.gameover) {
+        this.endTurn()
+        return
+      }
 
       this.resetArea()
 
@@ -156,7 +140,7 @@ export default {
       if (this.area.hasMobs) {
         // Armed?
         if (this.roll() <= probability.mobType.armed) {
-          this.area.mobs.strength = this.roll()
+          this.area.mobs.strength = this.roll(150)
         }
       }
     },
@@ -167,11 +151,11 @@ export default {
 
       if (ms === 0) {
         this.area.mobs.appearance = 'Unarmed ship detected.'
-      } else if (ms < this.ship.hull / 2) {
+      } else if (ms < 50) {
         this.area.mobs.appearance = 'Lightly defended ship detected.'
-      } else if (ms < this.ship.hull) {
-        this.area.mobs.appearance = 'Well defended ship detected.'
-      } else if (ms >= this.ship.hull) {
+      } else if (ms < 100) {
+        this.area.mobs.appearance = 'Well armed ship detected.'
+      } else if (ms >= 100) {
         this.area.mobs.appearance = 'Combat ship detected.'
       }
 
@@ -199,12 +183,31 @@ export default {
 
       this.ship.hull = this.ship.hull - dmg
       this.area.hasMobs = false
-      const salvagedFuel = this.roll(10)
-      this.ship.fuel = this.ship.fuel + salvagedFuel
 
       if (this.ship.hull > 0) {
+        const salvagedFuel = this.roll(10)
+        this.ship.fuel = this.ship.fuel + salvagedFuel
+
         this.msg = 'You neutralized the enemy vessel and salvaged ' + salvagedFuel + ' tons of fuel'
         this.ship.fighting = false
+
+        this.stats.kills++
+      }
+
+      this.endTurn()
+    },
+
+    endTurn () {
+      if (this.gameover) {
+        if (this.ship.jumps > this.stats.highscore) {
+          this.stats.highscore = this.ship.jumps
+        }
+
+        this.stats.games++
+
+        console.log('Game over', this.stats)
+
+        window.localStorage.setItem('stats', JSON.stringify(this.stats))
       }
     }
   },
@@ -212,6 +215,16 @@ export default {
   created () {
     this.msg = 'Ready to engage'
     this.resetArea()
+
+    const lsStats = window.localStorage.getItem('stats')
+    if (lsStats) {
+      const savedStats = JSON.parse(lsStats)
+      this.stats = {
+        highscore: parseInt(savedStats.highscore),
+        games: parseInt(savedStats.games),
+        kills: parseInt(savedStats.kills)
+      }
+    }
   }
 }
 </script>
