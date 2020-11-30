@@ -22,6 +22,7 @@
           <p v-if="!area.scanned">
             Your sensors picked up a drive signature
 
+            <br />
             <a href="#" @click.prevent="scanMobs" v-if="!area.scanned">scan</a>
           </p>
 
@@ -29,9 +30,11 @@
             {{ area.mobs.appearance }}
             {{ area.mobs.behaviour }}
 
+            <br />
+
             <a href="#" @click.prevent="attackMobs">
               <span v-if="ship.fighting">
-                engage the enemy
+                battle stations
               </span>
 
               <span v-else>

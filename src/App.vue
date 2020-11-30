@@ -8,8 +8,9 @@
 body {
   margin: 1rem;
   background: #111;
-  color: #ddd;
-  font-size: 18px;
+  color: #ccc;
+  font-family: Verdana, Arial, sans-serif;
+  font-size: 16px;
 }
 a {
   color: #c70;
