@@ -13,7 +13,7 @@ body {
   font-size: 16px;
 }
 a {
-  color: #c70;
+  color: #fff;
 }
 #app {
   -webkit-font-smoothing: antialiased;

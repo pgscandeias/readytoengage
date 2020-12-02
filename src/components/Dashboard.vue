@@ -1,18 +1,13 @@
 <template>
   <div>
-    <div class="stats" v-if="stats.games > 0">
-      HS:{{ stats.highscore }}
-      G:{{ stats.games }}
-      K:{{ stats.kills }}
-    </div>
-
-    <ul v-if="ship.jumps > 0">
-      <li>{{ ship.jumps }} jumps</li>
-      <li>{{ ship.hull }}% hull</li>
-      <li>{{ ship.fuel }}t fuel</li>
-    </ul>
-
     <div v-if="!gameover">
+
+      <ul class="ship-status" v-if="ship.jumps > 0">
+        <li>{{ ship.jumps }} jumps</li>
+        <li>{{ ship.hull }}% hull</li>
+        <li>{{ ship.fuel }}t fuel</li>
+      </ul>
+
       <div v-if="msg">
         {{ msg }}
       </div>
@@ -54,12 +49,13 @@
       </p>
     </div>
 
-    <div
-      class="game-over"
-      v-if="gameover"
-    >
+    <div class="game-over" v-if="gameover">
       {{ gameoverReason }}
       You managed {{ ship.jumps }} jumps.
+    </div>
+
+    <div class="stats" v-if="stats.games > 0">
+      HS:{{ stats.highscore }} G:{{ stats.games }} K:{{ stats.kills }}
     </div>
   </div>
 </template>
@@ -128,7 +124,6 @@ export default {
         this.endTurn()
         return
       }
-
       this.resetArea()
 
       const probability = {
@@ -138,7 +133,37 @@ export default {
         }
       }
 
-      // Roll for mobs
+      // Special story points
+      switch (this.ship.jumps) {
+        case 1:
+          this.msg = `
+            The shipyards disappear from view as you materialize
+            elsewhere in space.
+            Jumping away bought you some time.
+          `
+          break
+
+        case 2:
+          this.msg = "They'll come for you sooner or later."
+          break
+
+        case 3:
+          this.msg = `
+            Fuel is running low. Might have to take some from others.
+          `
+          break
+
+        default:
+          break
+      }
+      if (this.ship.jumps === 1) {
+
+      }
+
+      // Roll for mobs?
+      if (this.ship.jumps <= 3) {
+        return
+      }
       this.area.hasMobs = this.roll() >= probability.mobs
       if (this.area.hasMobs) {
         // Armed?
@@ -167,7 +192,8 @@ export default {
         threat = this.coinFlip()
         if (threat) {
           this.ship.fighting = true
-          this.area.mobs.behaviour = "Your scan alerted them and they're on an intercept course."
+          this.area.mobs.behaviour =
+            "Your scan alerted them and they're on an intercept course."
         }
       }
 
@@ -191,7 +217,10 @@ export default {
         const salvagedFuel = this.roll(10)
         this.ship.fuel = this.ship.fuel + salvagedFuel
 
-        this.msg = 'You neutralized the enemy vessel and salvaged ' + salvagedFuel + ' tons of fuel'
+        this.msg =
+          'You neutralized the enemy vessel and salvaged ' +
+          salvagedFuel +
+          ' tons of fuel'
         this.ship.fighting = false
 
         this.stats.kills++
@@ -237,5 +266,15 @@ export default {
   position: absolute;
   top: 1rem;
   right: 1rem;
+  color: #999;
+}
+
+.ship-status {
+  margin-left: 0;
+  padding-left: 0;
+
+  li {
+    list-style: none;
+  }
 }
 </style>
