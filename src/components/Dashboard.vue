@@ -2,11 +2,7 @@
   <div>
     <div v-if="!gameover">
 
-      <ul class="ship-status" v-if="ship.jumps > 0">
-        <li>{{ ship.jumps }} jumps</li>
-        <li>{{ ship.hull }}% hull</li>
-        <li>{{ ship.fuel }}t fuel</li>
-      </ul>
+      <ShipStatus :ship="ship"  v-if="ship.jumps > 1"/>
 
       <div v-if="msg">
         {{ msg }}
@@ -61,8 +57,12 @@
 </template>
 
 <script>
+import ShipStatus from './ShipStatus'
+import shipTypes from './shipTypes'
+
 export default {
   name: 'Dashboard',
+  components: { ShipStatus },
   data () {
     return {
       msg: null,
@@ -70,7 +70,8 @@ export default {
         jumps: 0,
         hull: 100,
         fuel: 10,
-        fighting: false
+        fighting: false,
+        guns: 1
       },
       area: {},
       stats: {
@@ -86,9 +87,9 @@ export default {
     },
     gameoverReason () {
       if (this.ship.fuel <= 0) {
-        return 'Your ship ran out of fuel.'
+        return "You ran out of fuel. It's only a matter of time until they find you now."
       } else if (this.ship.hull <= 0) {
-        return 'Your ship was destroyed'
+        return "Your ship was destroyed. At least they can't catch you anymore."
       }
 
       return null
@@ -106,6 +107,7 @@ export default {
     resetArea () {
       this.area = {
         hasMobs: false,
+        mob: {},
         mobs: {
           appearance: null,
           behaviour: null,
@@ -126,81 +128,56 @@ export default {
       }
       this.resetArea()
 
-      const probability = {
-        mobs: 30,
-        mobType: {
-          armed: 80
-        }
-      }
-
       // Special story points
       switch (this.ship.jumps) {
         case 1:
           this.msg = `
-            The shipyards disappear from view as you materialize
-            elsewhere in space.
+            The orbital shipyards disappear from view as you step out of the
+            space-time continuum and materialize elsewhere.
             Jumping away bought you some time.
-          `
-          break
-
-        case 2:
-          this.msg = "They'll come for you sooner or later."
-          break
-
-        case 3:
-          this.msg = `
-            Fuel is running low. Might have to take some from others.
           `
           break
 
         default:
           break
       }
-      if (this.ship.jumps === 1) {
-
-      }
 
       // Roll for mobs?
-      if (this.ship.jumps <= 3) {
+      if (this.ship.jumps <= 2) {
         return
       }
-      this.area.hasMobs = this.roll() >= probability.mobs
-      if (this.area.hasMobs) {
-        // Armed?
-        if (this.roll() <= probability.mobType.armed) {
-          this.area.mobs.strength = this.roll(150)
+
+      // Must roll this number or higher to get this kind of mob.
+      // But if the roll is higher than the next tier, then gets that tier.
+      const mobOdds = {
+        freighter: 20,
+        gunboat: 50,
+        transport: 80
+      }
+
+      // Pick mob type
+      const r = this.roll()
+      var mobType = null
+      console.log('rolled a ' + r)
+      for (const mt in mobOdds) {
+        if (r >= mobOdds[mt]) {
+          mobType = mt
         }
       }
+      if (mobType) {
+        this.area.hasMobs = true
+        this.area.mob = {
+          type: mobType,
+          name: shipTypes[mobType].name,
+          guns: shipTypes[mobType].guns
+        }
+      }
+      console.log(mobType + ' present')
+      console.log(this.area.mob)
     },
 
     scanMobs () {
-      const ms = this.area.mobs.strength
-      var threat = false
-
-      if (ms === 0) {
-        this.area.mobs.appearance = 'Unarmed ship detected.'
-      } else if (ms < 50) {
-        this.area.mobs.appearance = 'Lightly defended ship detected.'
-      } else if (ms < 100) {
-        this.area.mobs.appearance = 'Well armed ship detected.'
-      } else if (ms >= 100) {
-        this.area.mobs.appearance = 'Combat ship detected.'
-      }
-
-      // Armed mobs might want to fight
-      if (ms > 0) {
-        threat = this.coinFlip()
-        if (threat) {
-          this.ship.fighting = true
-          this.area.mobs.behaviour =
-            "Your scan alerted them and they're on an intercept course."
-        }
-      }
-
-      if (ms <= 0 || !threat) {
-        this.area.mobs.behaviour = "They don't seem to have noticed your ship."
-      }
-
+      this.area.mobs.appearance = this.area.mob.name + ' detected.'
       this.area.scanned = true
     },
 
@@ -264,17 +241,8 @@ export default {
 <style scoped lang="scss">
 .stats {
   position: absolute;
-  top: 1rem;
+  bottom: 1rem;
   right: 1rem;
   color: #999;
-}
-
-.ship-status {
-  margin-left: 0;
-  padding-left: 0;
-
-  li {
-    list-style: none;
-  }
 }
 </style>
