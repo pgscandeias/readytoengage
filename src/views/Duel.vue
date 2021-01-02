@@ -18,9 +18,9 @@
 
 <script>
 // @ is an alias to /src
-import ships from '@/engine/data/ships'
-import { uuidv4 } from '@/engine/uuidv4'
-import Ship from '@/engine/Ship'
+// import ships from '@/engine/data/ships'
+// import { uuidv4 } from '@/engine/uuidv4'
+// import Ship from '@/engine/Ship'
 
 export default {
   name: 'Duel',
@@ -33,10 +33,59 @@ export default {
     }
   },
   created () {
-    console.log(ships.transport.model)
-    console.log(uuidv4())
+    class Ship {
+      name = null
 
-    this.player = Ship.create()
+      // Armor reduces damage received
+      armor = 0
+
+      static create (data) {
+        const s = new Ship()
+        s.name = data.name
+        s.armor = data.armor
+
+        return s
+      }
+
+      // Receive damage
+      handleDamage (weapon) {
+        // Factor in the armor
+        let dmg = weapon.damage - this.armor
+        dmg = dmg >= 0 ? dmg : 0
+
+        console.log(`Receiving ${dmg} damage from ${weapon.name}`)
+      }
+    }
+
+    class Weapon {
+      name = null
+      damage = 1
+
+      static create (data) {
+        const w = new Weapon()
+        w.name = data.name
+        w.damage = data.damage
+
+        return w
+      }
+
+      // Fire on a target and have it handle damage
+      fire (target) {
+        target.handleDamage(this)
+      }
+    }
+
+    const s = Ship.create({
+      name: 'Adamastor',
+      armor: 1
+    })
+
+    const w = Weapon.create({
+      name: 'Light Kinetic Gun',
+      damage: 1
+    })
+
+    w.fire(s)
   }
 }
 </script>
